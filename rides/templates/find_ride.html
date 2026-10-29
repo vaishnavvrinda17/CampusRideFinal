@@ -1,0 +1,496 @@
+
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Find a Ride | CampusRide</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        .ride-form-section, .available-rides {
+            max-width: 650px;
+            margin: 35px auto;
+            padding: 30px;
+            background: white;
+            border-radius: 14px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+        }
+        .ride-form-section h2, .available-rides h2 {
+            margin-bottom: 10px;
+            color: #102a56;
+        }
+        .ride-form-section p { margin-bottom: 25px; }
+        .ride-form { display: grid; gap: 18px; }
+        .ride-form label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .ride-form input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 7px;
+            font-size: 15px;
+            box-sizing: border-box;
+        }
+        .ride-form button, .request-button {
+            border: none;
+            cursor: pointer;
+            font-size: 15px;
+            font-family: inherit;
+        }
+        .ride-card {
+            border: 1px solid #dbe3ef;
+            border-radius: 10px;
+            padding: 18px;
+            margin-top: 15px;
+        }
+        .ride-card h3 { color: #102a56; margin-bottom: 8px; }
+        .ride-card p { margin: 8px 0; }
+        .request-button {
+            margin-top: 12px;
+            padding: 11px 18px;
+            border-radius: 7px;
+            background: #3157d5;
+            color: white;
+        }
+        .request-button:hover { background: #2445b7; }
+        .notice {
+            padding: 12px 15px;
+            margin: 12px 0;
+            border-radius: 7px;
+            background: #e8f5e9;
+            color: #20632b;
+        }
+        .error-notice {
+            background: #ffebee;
+            color: #b71c1c;
+        }
+        .auth-links a { margin-right: 12px; }
+        .no-rides { color: #64748b; }
+        @media (max-width: 700px) {
+            .ride-form-section, .available-rides {
+                margin: 25px 15px;
+                padding: 22px;
+            }
+            .navbar { padding: 15px; }
+            .navbar nav { display: flex; flex-wrap: wrap; gap: 12px; }
+        }
+
+.location-field {
+    position: relative;
+}
+
+.location-suggestions {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #ffffff;
+    border: 1px solid #dbe3ef;
+    border-radius: 8px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+    z-index: 1000;
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.location-suggestions .suggestion-item {
+    display: block;
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-bottom: 1px solid #edf0f5;
+    background: #ffffff;
+    text-align: left;
+    cursor: pointer;
+    color: #243247;
+    font: inherit;
+}
+
+.location-suggestions .suggestion-item:hover {
+    background: #f0f5ff;
+}
+
+.location-suggestions .suggestion-item:last-child {
+    border-bottom: none;
+}
+
+.location-suggestions .suggestion-message {
+    padding: 12px;
+    color: #64748b;
+    font-size: 14px;
+}
+
+    </style>
+</head>
+<body>
+    <header class="navbar">
+        <h1 class="logo">CampusRide</h1>
+        <nav>
+            <a href="/">Home</a>
+            <a href="{% url 'find_ride' %}">Find Ride</a>
+            <a href="{% url 'offer_ride' %}">Offer Ride</a>
+            <a href="{% url 'share_errand' %}">Share Errand</a>
+
+            {% if user.is_authenticated %}
+                <span>Hi, {{ user.username }}</span>
+                <a href="{% url 'logout' %}"
+                   onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
+                    Logout
+                </a>
+            {% else %}
+                <a href="{% url 'login' %}">Login</a>
+                <a href="{% url 'register' %}">Register</a>
+            {% endif %}
+        </nav>
+
+        {% if user.is_authenticated %}
+            <form id="logout-form" method="post"
+                  action="{% url 'logout' %}" style="display:none;">
+                {% csrf_token %}
+            </form>
+        {% endif %}
+    </header>
+
+    <main>
+        <section class="ride-form-section">
+            <h2>Find Your Ride</h2>
+            <p>Plan your journey with fellow campus students.</p>
+
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="notice {% if message.tags == 'error' %}error-notice{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <form class="ride-form" method="get">
+                <div>
+    <label>Choose Pickup & Destination on Map</label>
+    
+
+    <div id="rideMap"
+         style="height: 350px; width: 100%; border-radius: 10px;">
+    </div>
+
+    <p id="mapStatus">Select your pickup location on the map.</p>
+</div>
+                
+<div class="location-field">
+    <label for="pickup">Pickup Location</label>
+    <input type="text" id="pickup" name="pickup"
+           placeholder="Type pickup location..."
+           value="{{ request.GET.pickup }}"
+           autocomplete="off">
+    <div id="pickupSuggestions" class="location-suggestions"></div>
+</div>
+
+<div class="location-field">
+    <label for="destination">Destination</label>
+    <input type="text" id="destination" name="destination"
+           placeholder="Type destination..."
+           value="{{ request.GET.destination }}"
+           autocomplete="off">
+    <div id="destinationSuggestions" class="location-suggestions"></div>
+</div>
+    
+                <div>
+                    <label for="travel-date">Travel Date</label>
+                    <input type="date" id="travel-date" name="travel_date"
+                           value="{{ request.GET.travel_date }}">
+                </div>
+               
+
+
+
+<div>
+    <label for="travel-time">Departure Time (From)</label>
+    <input type="text"
+           id="travel-time"
+           name="travel_time"
+           placeholder="e.g. 02:30 PM"
+           value="{{ request.GET.travel_time }}"
+           pattern="(0?[1-9]|1[0-2]):[0-5][0-9]\s?(AM|PM|am|pm)"
+           title="Enter time in 12-hour format, e.g. 02:30 PM"
+           autocomplete="off">
+</div>
+
+                <button type="submit" class="btn">Search Rides</button>
+                
+            </form>
+        </section>
+
+        <section class="available-rides">
+            <h2>Available Rides</h2>
+
+            {% for ride in rides %}
+                <article class="ride-card">
+                    <h3>{{ ride.pickup_location }} → {{ ride.destination }}</h3>
+                    <p><strong>Student:</strong> {{ ride.student_name }}</p>
+                    <p><strong>Date:</strong> {{ ride.travel_date }}</p>
+                    <p><strong>Time:</strong> {{ ride.travel_time|time:"h:i A" }}</p>
+                    <p><strong>Available seats:</strong> {{ ride.available_seats }}</p>
+
+                    
+                    
+                    {% if user.is_authenticated %}
+                        {% if ride.offered_by_id == user.id %}
+                            <p>You offered this ride.</p>
+                        {% elif ride.offered_by_id %}
+                            <form method="post"
+                                  action="{% url 'request_ride' ride.id %}">
+                                {% csrf_token %}
+                                <button type="submit" class="request-button">
+                                    Request Ride
+                                </button>
+                            </form>
+                        {% else %}
+                            <p>Request unavailable for this older ride.</p>
+                        {% endif %}
+                    {% else %}
+                        <p>
+                            <a href="{% url 'login' %}">Log in</a>
+                            to request this ride.
+                        </p>
+                    {% endif %}
+                </article>
+            {% empty %}
+                <p class="no-rides">No rides found. Try again later.</p>
+            {% endfor %}
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2026 CampusRide | Campus Travel Made Easy</p>
+    </footer>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const mapElement = document.getElementById("rideMap");
+    const status = document.getElementById("mapStatus");
+    const pickupInput = document.getElementById("pickup");
+    const destinationInput = document.getElementById("destination");
+
+    if (!mapElement || typeof L === "undefined") {
+        status.textContent = "Map load nahi hua. Internet check karo.";
+        return;
+    }
+
+    const map = L.map("rideMap").setView([23.2599, 77.4126], 12);
+
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "&copy; OpenStreetMap contributors",
+        maxZoom: 19,
+        referrerPolicy: "strict-origin-when-cross-origin"
+    }).addTo(map);
+
+    let pickupMarker = null;
+    let destinationMarker = null;
+    let selectionStep = "pickup";
+
+    map.on("click", function (event) {
+        const lat = event.latlng.lat.toFixed(5);
+        const lng = event.latlng.lng.toFixed(5);
+        const coordinates = lat + ", " + lng;
+
+        if (selectionStep === "pickup") {
+            if (pickupMarker) map.removeLayer(pickupMarker);
+
+            pickupMarker = L.marker(event.latlng)
+                .addTo(map)
+                .bindPopup("Pickup Location")
+                .openPopup();
+
+            pickupInput.value = coordinates;
+            selectionStep = "destination";
+            status.textContent =
+                "Pickup selected. Ab destination select karo.";
+        } else {
+            if (destinationMarker) map.removeLayer(destinationMarker);
+
+            destinationMarker = L.marker(event.latlng)
+                .addTo(map)
+                .bindPopup("Destination")
+                .openPopup();
+
+            destinationInput.value = coordinates;
+            selectionStep = "pickup";
+            status.textContent =
+                "Destination selected. Agli click se pickup dobara select hoga.";
+        }
+    });
+
+    document.addEventListener("campusride:place-selected", function (event) {
+        const place = event.detail;
+        const point = [place.lat, place.lon];
+
+        map.setView(point, 16);
+
+        if (place.inputId === "pickup") {
+            if (pickupMarker) {
+                map.removeLayer(pickupMarker);
+            }
+
+            pickupMarker = L.marker(point)
+                .addTo(map)
+                .bindPopup("Pickup: " + place.address)
+                .openPopup();
+
+            selectionStep = "destination";
+            status.textContent =
+                "Pickup confirmed. Ab destination select karo.";
+
+        } else if (place.inputId === "destination") {
+            if (destinationMarker) {
+                map.removeLayer(destinationMarker);
+            }
+
+            destinationMarker = L.marker(point)
+                .addTo(map)
+                .bindPopup("Destination: " + place.address)
+                .openPopup();
+
+            selectionStep = "pickup";
+            status.textContent =
+                "Destination confirmed. Dono locations check kar lo.";
+        }
+    });
+
+    setTimeout(function () {
+        map.invalidateSize();
+    }, 300);
+});
+
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    function setupAddressSuggestions(inputId, suggestionsId) {
+        const input = document.getElementById(inputId);
+        const box = document.getElementById(suggestionsId);
+        let timer;
+        let controller;
+
+        function closeSuggestions() {
+            box.style.display = "none";
+            box.replaceChildren();
+        }
+
+        input.addEventListener("input", function () {
+            clearTimeout(timer);
+            if (controller) controller.abort();
+
+            const query = input.value.trim();
+            closeSuggestions();
+
+            if (query.length < 3) return;
+
+            timer = setTimeout(async function () {
+                controller = new AbortController();
+
+                box.innerHTML =
+                    '<div class="suggestion-message">Searching places...</div>';
+                box.style.display = "block";
+
+                try {
+                    const url = new URL(
+                        "https://nominatim.openstreetmap.org/search"
+                    );
+
+                    
+url.search = new URLSearchParams({
+    q: query,
+    format: "jsonv2",
+    limit: "5",
+    addressdetails: "1",
+    countrycodes: "in"
+});
+
+
+                    const response = await fetch(url, {
+                        signal: controller.signal
+                    });
+
+                    if (!response.ok) {
+                        throw new Error("Search unavailable");
+                    }
+
+                    const places = await response.json();
+                    box.replaceChildren();
+
+                    if (!places.length) {
+                        box.innerHTML =
+                            '<div class="suggestion-message">No places found. Try a more specific address.</div>';
+                        box.style.display = "block";
+                        return;
+                    }
+
+                    places.forEach(function (place) {
+                        const button = document.createElement("button");
+                        button.type = "button";
+                        button.className = "suggestion-item";
+                        button.textContent = place.display_name;
+
+                        button.addEventListener("click", function () {
+                            input.value = place.display_name;
+                            input.dataset.lat = place.lat;
+                            input.dataset.lon = place.lon;
+
+                            closeSuggestions();
+
+                            document.dispatchEvent(new CustomEvent(
+                                "campusride:place-selected",
+                                {
+                                    detail: {
+                                        inputId: inputId,
+                                        lat: Number(place.lat),
+                                        lon: Number(place.lon),
+                                        address: place.display_name
+                                    }
+                                }
+                            ));
+                        });
+
+                        box.appendChild(button);
+                    });
+
+                    box.style.display = "block";
+                } catch (error) {
+                    if (error.name === "AbortError") return;
+
+                    box.innerHTML =
+                        '<div class="suggestion-message">Places load nahi hue. Internet check karke dobara try karo.</div>';
+                    box.style.display = "block";
+                }
+            }, 1000);
+        });
+
+        input.addEventListener("keydown", function (event) {
+            if (event.key === "Escape") closeSuggestions();
+        });
+
+        document.addEventListener("click", function (event) {
+            if (!input.contains(event.target) && !box.contains(event.target)) {
+                closeSuggestions();
+            }
+        });
+    }
+
+    setupAddressSuggestions("pickup", "pickupSuggestions");
+    setupAddressSuggestions("destination", "destinationSuggestions");
+});
+</script>
+
+
+</body>
+</html>

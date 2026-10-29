@@ -1,0 +1,91 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Ride Tracking | CampusRide</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+
+    <link
+        rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+</head>
+<body>
+    <main class="container">
+        <h1>Live Ride Tracking</h1>
+        <p>Track your campus ride location.</p>
+
+        <section class="card">
+            <h2>Ride Map</h2>
+            <div id="trackingMap"
+                 style="height: 350px; width: 100%; border-radius: 10px;">
+            </div>
+            <p id="trackingStatus">Waiting for location...</p>
+        </section>
+
+        <p><a href="/">Back to Home</a></p>
+    </main>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const mapElement = document.getElementById("trackingMap");
+    const status = document.getElementById("trackingStatus");
+
+    if (!mapElement || typeof L === "undefined") {
+        status.textContent = "Map library load nahi hui. Internet connection check karo.";
+        return;
+    }
+
+    const map = L.map("trackingMap").setView([23.2599, 77.4126], 12);
+
+   
+
+
+    L.tileLayer(
+    "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+    {
+        attribution: '&copy; OpenStreetMap contributors',
+        maxZoom: 19,
+        referrerPolicy: "strict-origin-when-cross-origin"
+    }
+    ).addTo(map);
+
+
+    let pickupMarker = null;
+
+map.on("click", function (event) {
+    const lat = event.latlng.lat;
+    const lng = event.latlng.lng;
+
+    if (pickupMarker) {
+        map.removeLayer(pickupMarker);
+    }
+
+    pickupMarker = L.marker([lat, lng]).addTo(map);
+
+    pickupMarker.bindPopup(
+        "Pickup Location<br>" +
+        "Latitude: " + lat.toFixed(5) + "<br>" +
+        "Longitude: " + lng.toFixed(5)
+    ).openPopup();
+
+    status.textContent =
+        "Pickup selected: " +
+        lat.toFixed(5) + ", " + lng.toFixed(5);
+});
+
+    status.textContent = "Map loaded. Live GPS tracking abhi connect nahi hai.";
+
+    setTimeout(function () {
+        map.invalidateSize();
+    }, 200);
+});
+</script>
+</body>
+</html>
+

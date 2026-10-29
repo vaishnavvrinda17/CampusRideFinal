@@ -1,0 +1,50 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Email | CampusRide</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #e8f0ff, #f7f9ff);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .card {
+            max-width: 430px;
+            width: 100%;
+            padding: 35px;
+            background: white;
+            border-radius: 18px;
+            box-shadow: 0 12px 35px rgba(30, 50, 90, .12);
+            text-align: center;
+        }
+        h1 { color: #3157d5; }
+        p { color: #4b5563; line-height: 1.6; }
+        a {
+            display: inline-block;
+            margin-top: 15px;
+            padding: 12px 22px;
+            border-radius: 9px;
+            background: #3157d5;
+            color: white;
+            text-decoration: none;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <main class="card">
+        <h1>CampusRide</h1>
+        <p>{{ message }}</p>
+        <a href="{% url 'login' %}">Go to Login</a>
+        <p><a href="{% url 'home' %}">Back to Home</a></p>
+    </main>
+</body>
+</html>

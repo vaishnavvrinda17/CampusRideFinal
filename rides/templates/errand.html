@@ -1,0 +1,399 @@
+
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Share an Errand | CampusRide</title>
+
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <link rel="stylesheet"
+          href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    
+    <style>
+        .errand-section {
+            max-width: 760px;
+            margin: 45px auto;
+            padding: 30px;
+            background: white;
+            border-radius: 14px;
+            box-shadow: 0 5px 20px rgba(0,0,0,.08);
+        }
+        .errand-section h2 { color: #102a56; }
+        .errand-form { display: grid; gap: 18px; margin-top: 25px; }
+        .errand-form label { display:block; font-weight:bold; margin-bottom:6px; }
+        .errand-form input, .errand-form textarea,
+        .errand-form select {
+            width:100%; padding:12px; border:1px solid #cbd5e1;
+            border-radius:7px; font:inherit; box-sizing:border-box;
+        }
+        .errand-form textarea { min-height:100px; resize:vertical; }
+        .location-field { position:relative; }
+        .location-suggestions {
+            display:none; position:absolute; top:100%; left:0; right:0;
+            z-index:1000; background:white; border:1px solid #cbd5e1;
+            border-radius:6px; max-height:200px; overflow-y:auto;
+        }
+        .suggestion-item { padding:10px; cursor:pointer; font-size:14px; }
+        .suggestion-item:hover { background:#eff6ff; }
+        .location-button {
+            margin-top:8px; padding:9px 12px; border:0;
+            border-radius:6px; cursor:pointer;
+        }
+        .location-status, .map-instructions { font-size:14px; color:#475569; }
+        .errand-map {
+            height:300px; width:100%; border-radius:9px;
+            border:1px solid #cbd5e1; z-index:1;
+        }
+        .success-message { background:#dcfce7; color:#166534; padding:12px; border-radius:7px; }
+        .error-message { background:#fee2e2; color:#991b1b; padding:12px; border-radius:7px; }
+        @media (max-width:700px) {
+            .errand-section { margin:25px 15px; padding:22px; }
+        }
+    </style>
+</head>
+<body>
+<header class="navbar">
+    <h1 class="logo">CampusRide</h1>
+    <nav>
+        <a href="/">Home</a>
+        <a href="{% url 'find_ride' %}">Find Ride</a>
+        <a href="{% url 'offer_ride' %}">Offer Ride</a>
+        <a href="{% url 'share_errand' %}">Share Errand</a>
+        <a href="{% url 'nearby_rides' %}">Nearby Rides</a>
+    </nav>
+</header>
+
+<main class="errand-section">
+    <h2>Share an Errand</h2>
+    <p>Coordinate small tasks with fellow campus students.</p>
+
+    {% if success %}
+        <p class="success-message">Your errand request was saved successfully!</p>
+    {% endif %}
+    {% if error %}
+        <p class="error-message">{{ error }}</p>
+    {% endif %}
+
+    <form class="errand-form" id="errandForm" method="post">
+        {% csrf_token %}
+
+        <div>
+            <label for="student">Your Name</label>
+            <input type="text" id="student" name="student_name"
+                   placeholder="Enter your name" required>
+        </div>
+
+        <div>
+            <label for="task">Task Description</label>
+            <textarea id="task" name="task_description"
+                      placeholder="What help do you need?" required></textarea>
+        </div>
+
+        <div>
+            <label for="pickup">Pickup Location</label>
+            <div class="location-field">
+                <input type="text" id="pickup" name="pickup_location"
+                       placeholder="Start typing pickup address..."
+                       autocomplete="off" required>
+                <div id="pickupSuggestions" class="location-suggestions"></div>
+            </div>
+            <button type="button" id="useLocation" class="location-button">
+                Use My Current Location for Pickup
+            </button>
+            <p id="pickupStatus" class="location-status" role="status">
+                Enter an address or select a point on the map.
+            </p>
+            
+        <div>
+            <label for="destination">Destination</label>
+            <div class="location-field">
+                <input type="text" id="destination" name="delivery_location"
+                       placeholder="Start typing destination address..."
+                       autocomplete="off" required>
+                <div id="destinationSuggestions" class="location-suggestions"></div>
+            </div>
+            <p id="destinationStatus" class="location-status" role="status">
+                Enter an address or select a point on the map.
+            </p>
+            <input type="hidden" id="pickup_latitude" name="pickup_latitude">
+<input type="hidden" id="pickup_longitude" name="pickup_longitude">
+<input type="hidden" id="delivery_latitude" name="delivery_latitude">
+<input type="hidden" id="delivery_longitude" name="delivery_longitude">
+            <div id="locationMap"
+     style="height: 350px; width: 100%; border-radius: 10px;"></div>
+
+<div>
+    <button type="button" id="setPickupBtn">Set Pickup Location</button>
+    <button type="button" id="setDeliveryBtn">Set Delivery Location</button>
+</div>
+
+<p id="activeLocationLabel">Currently selecting: Pickup Location</p>
+        <div>
+            <label for="date">Required Date</label>
+            <input type="date" id="date" name="required_date" required>
+        </div>
+
+        <div>
+            <label for="category">Errand Category</label>
+            <select id="category" name="category" required>
+                <option value="">Select category</option>
+                <option value="shopping">Shopping</option>
+                <option value="documents">Document Pickup</option>
+                <option value="food">Food Pickup</option>
+                <option value="other">Other</option>
+            </select>
+        </div>
+
+        <p id="formError" class="error-message" role="alert"></p>
+        <button type="submit" id="submitErrand" class="btn">Post Errand</button>
+    </form>
+</main>
+
+<footer>
+    <p>&copy; 2026 CampusRide | Campus Travel Made Easy</p>
+</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(() => {
+    const form = document.getElementById("errandForm");
+    const errorBox = document.getElementById("formError");
+    const submitButton = document.getElementById("submitErrand");
+    const pickup = document.getElementById("pickup");
+    const destination = document.getElementById("destination");
+    const useLocationButton = document.getElementById("useLocation");
+
+    const fields = {
+    pickup: {
+        input: pickup,
+        lat: document.getElementById("pickup_latitude"),
+        lon: document.getElementById("pickup_longitude"),
+        status: document.getElementById("pickupStatus"),
+        suggestions: document.getElementById("pickupSuggestions"),
+        marker: null
+    },
+    destination: {
+        input: destination,
+        lat: document.getElementById("delivery_latitude"),
+        lon: document.getElementById("delivery_longitude"),
+        status: document.getElementById("destinationStatus"),
+        suggestions: document.getElementById("destinationSuggestions"),
+        marker: null
+    }
+};
+
+    let activeField = "pickup";
+    const defaultCenter = [23.2599, 77.4126]; // Bhopal; change if needed.
+
+   
+
+    async function reverseGeocode(fieldName, lat, lon) {
+        const field = fields[fieldName];
+        try {
+            const url = new URL("https://nominatim.openstreetmap.org/reverse");
+            url.search = new URLSearchParams({
+                lat, lon, format: "jsonv2", "accept-language": "en"
+            });
+            const response = await fetch(url);
+            if (!response.ok) throw new Error("Address lookup failed.");
+            const result = await response.json();
+            if (result.display_name) field.input.value = result.display_name;
+        } catch {
+            field.status.textContent = "Coordinates selected; please type the address if needed.";
+        }
+    }
+
+    async function geocodeAddress(address) {
+        const url = new URL("https://nominatim.openstreetmap.org/search");
+        url.search = new URLSearchParams({
+            q: address, format: "jsonv2", limit: "5", countrycodes: "in"
+        });
+        const response = await fetch(url);
+        if (!response.ok) throw new Error("Address lookup is temporarily unavailable.");
+        return await response.json();
+    }
+
+    function showSuggestions(fieldName, results) {
+        const field = fields[fieldName];
+        field.suggestions.innerHTML = "";
+        if (!results.length) {
+            field.suggestions.style.display = "none";
+            return;
+        }
+
+        results.forEach(result => {
+            const item = document.createElement("div");
+            item.className = "suggestion-item";
+            item.textContent = result.display_name;
+            item.addEventListener("click", () => {
+                setPoint(fieldName, result.lat, result.lon, result.display_name);
+                field.suggestions.style.display = "none";
+            });
+            field.suggestions.appendChild(item);
+        });
+        field.suggestions.style.display = "block";
+    }
+
+    
+
+
+const map = L.map("locationMap").setView(defaultCenter, 12);
+setTimeout(() => map.invalidateSize(true), 500);
+
+L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    referrerPolicy: "strict-origin-when-cross-origin",
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+}).addTo(map);
+
+function selectLocation(fieldName) {
+    activeField = fieldName;
+    document.getElementById("activeLocationLabel").textContent =
+        "Currently selecting: " +
+        (fieldName === "pickup" ? "Pickup Location" : "Delivery Location");
+}
+
+document.getElementById("setPickupBtn").addEventListener("click", () => {
+    selectLocation("pickup");
+});
+
+document.getElementById("setDeliveryBtn").addEventListener("click", () => {
+    selectLocation("destination");
+});
+
+function setPoint(fieldName, lat, lon, address = "") {
+    const field = fields[fieldName];
+
+    field.lat.value = lat;
+    field.lon.value = lon;
+
+    if (address) {
+        field.input.value = address;
+    }
+
+    if (field.marker) {
+        field.marker.setLatLng([lat, lon]);
+    } else {
+        field.marker = L.marker([lat, lon], {
+            draggable: true
+        }).addTo(map);
+
+        field.marker.on("dragend", async event => {
+            const position = event.target.getLatLng();
+            field.lat.value = position.lat;
+            field.lon.value = position.lng;
+
+            await reverseGeocode(
+                fieldName,
+                position.lat,
+                position.lng
+            );
+        });
+    }
+
+    map.setView([lat, lon], 15);
+    field.status.textContent =
+        "Location selected. You can drag the marker to adjust it.";
+}
+
+Object.entries(fields).forEach(([fieldName, field]) => {
+    field.input.addEventListener("focus", () => {
+        selectLocation(fieldName);
+    });
+
+    field.input.addEventListener("input", () => {
+        field.lat.value = "";
+        field.lon.value = "";
+
+        if (field.marker) {
+            map.removeLayer(field.marker);
+            field.marker = null;
+        }
+
+        field.status.textContent = "Searching for address suggestions...";
+        clearTimeout(field.searchTimer);
+
+        field.searchTimer = setTimeout(async () => {
+            if (field.input.value.trim().length < 3) {
+                field.suggestions.style.display = "none";
+                return;
+            }
+
+            try {
+                showSuggestions(
+                    fieldName,
+                    await geocodeAddress(field.input.value.trim())
+                );
+            } catch {
+                field.suggestions.style.display = "none";
+                field.status.textContent =
+                    "Suggestions unavailable. You can still choose a point on the map.";
+            }
+        }, 800);
+    });
+});
+
+        
+
+    useLocationButton.addEventListener("click", () => {
+        errorBox.textContent = "";
+        if (!navigator.geolocation) {
+            fields.pickup.status.textContent = "Browser location is not supported.";
+            return;
+        }
+        useLocationButton.disabled = true;
+        useLocationButton.textContent = "Detecting location...";
+        navigator.geolocation.getCurrentPosition(async position => {
+            const { latitude, longitude } = position.coords;
+            setPoint("pickup", latitude, longitude);
+            await reverseGeocode("pickup", latitude, longitude);
+            useLocationButton.disabled = false;
+            useLocationButton.textContent = "Use My Current Location for Pickup";
+        }, error => {
+            fields.pickup.status.textContent = error.code === 1
+                ? "Location permission denied. Allow location access in browser settings."
+                : "Location unavailable. Please enter the address manually.";
+            useLocationButton.disabled = false;
+            useLocationButton.textContent = "Use My Current Location for Pickup";
+        }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
+    });
+
+    form.addEventListener("submit", async event => {
+        event.preventDefault();
+        errorBox.textContent = "";
+        submitButton.disabled = true;
+        submitButton.textContent = "Finding locations...";
+
+        try {
+            for (const fieldName of Object.keys(fields)) {
+                const field = fields[fieldName];
+                if (!field.input.value.trim()) {
+                    throw new Error("Please enter both pickup and destination addresses.");
+                }
+                if (!field.lat.value || !field.lon.value) {
+                    field.status.textContent = "Finding coordinates...";
+                    const results = await geocodeAddress(field.input.value.trim());
+                    if (!results.length) {
+                        throw new Error("Address not found. Select a suggestion or choose a point on the map.");
+                    }
+                    setPoint(fieldName, results[0].lat, results[0].lon, results[0].display_name);
+                }
+            }
+            form.submit();
+        } catch (error) {
+            errorBox.textContent = error.message || "Could not locate the address.";
+            submitButton.disabled = false;
+            submitButton.textContent = "Post Errand";
+        }
+    });
+
+  // Refresh the single map after the page layout is complete.
+setTimeout(() => {
+    map.invalidateSize(true);
+}, 200);
+})();
+</script>
+</body>
+</html>

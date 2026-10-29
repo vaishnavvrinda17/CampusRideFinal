@@ -1,0 +1,331 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Ride Requests | CampusRide</title>
+
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+
+    <style>
+        body {
+            margin: 0;
+            background: #f4f7fb;
+            color: #172033;
+            font-family: Arial, sans-serif;
+        }
+
+        .navbar {
+            background: #fff;
+            padding: 18px 7%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 12px #0000000d;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .logo {
+            color: #2563eb;
+            font-size: 24px;
+            font-weight: bold;
+            text-decoration: none;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: #374151;
+            font-size: 14px;
+        }
+
+        .nav-links a:hover {
+            color: #2563eb;
+        }
+
+        .container {
+            width: 86%;
+            max-width: 1100px;
+            margin: 45px auto;
+        }
+
+        .heading {
+            margin-bottom: 30px;
+        }
+
+        .heading h1 {
+            margin-bottom: 8px;
+            font-size: 32px;
+        }
+
+        .heading p {
+            color: #64748b;
+        }
+
+        .ride-card {
+            background: white;
+            padding: 25px;
+            margin-bottom: 22px;
+            border-radius: 14px;
+            box-shadow: 0 5px 20px #1e293b0b;
+            border: 1px solid #e8edf5;
+        }
+
+        .ride-card h2 {
+            margin-top: 0;
+            color: #1d4ed8;
+        }
+
+        .ride-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 18px;
+            margin: 22px 0;
+        }
+
+        .detail {
+            background: #f8fafc;
+            padding: 14px;
+            border-radius: 9px;
+        }
+
+        .detail small {
+            display: block;
+            color: #64748b;
+            margin-bottom: 7px;
+        }
+
+        .request {
+            border-top: 1px solid #e5e7eb;
+            padding-top: 18px;
+            margin-top: 18px;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 6px 11px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status.accepted {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .status.rejected {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .btn {
+            border: 0;
+            border-radius: 7px;
+            padding: 10px 17px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .accept {
+            background: #16a34a;
+            color: white;
+        }
+
+        .reject {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+
+        .empty {
+            text-align: center;
+            padding: 45px 20px;
+            background: white;
+            border-radius: 14px;
+            color: #64748b;
+        }
+
+        .messages {
+            padding: 12px 16px;
+            background: #dcfce7;
+            color: #166534;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                width: 92%;
+                margin-top: 25px;
+            }
+
+            .heading h1 {
+                font-size: 26px;
+            }
+
+            .navbar {
+                padding: 16px 5%;
+            }
+            }
+
+            .offer-btn {
+            display: inline-block;
+            margin-top: 15px;
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            color: #ffffff;
+            text-decoration: none;
+            font-size: 15px;
+            font-weight: 600;
+            border-radius: 8px;
+            border: none;
+            box-shadow: 0 4px 10px rgba(37, 99, 235, 0.2);
+            transition: all 0.2s ease;
+            }
+
+            .offer-btn:hover {
+            background: #1e40af;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 14px rgba(37, 99, 235, 0.3);
+            }
+
+            .empty a {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                gap: 8px;
+                margin-top: 12px;
+                padding: 13px 26px;
+                background: #2563eb;
+                color: #ffffff;
+                text-decoration: none;
+                font-size: 15px;
+                font-weight: 600;
+                border-radius: 8px;
+                border: 1px solid #2563eb;
+                box-shadow: 0 4px 12px rgba(37, 99, 235, 0.18);
+                transition: background 0.2s ease, transform 0.2s ease;
+            }
+
+            .empty a:hover {
+                background: #1d4ed8;
+                border-color: #1d4ed8;
+                transform: translateY(-2px);
+            }
+
+
+    </style>
+</head>
+
+<body>
+    <nav class="navbar">
+        <a href="{% url 'home' %}" class="logo">CampusRide</a>
+
+        <div class="nav-links">
+            <a href="{% url 'home' %}">Home</a>
+            <a href="{% url 'find_ride' %}">Find Ride</a>
+            <a href="{% url 'offer_ride' %}">Offer a Ride</a>
+            <a href="{% url 'share_errand' %}">Share Errand</a>
+        </div>
+    </nav>
+
+    <main class="container">
+        <div class="heading">
+            <h1>My Ride Requests</h1>
+            <p>Manage requests from students who want to travel with you.</p>
+        </div>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="messages">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+
+        {% for ride in rides %}
+            <section class="ride-card">
+                <h2>{{ ride.pickup_location }} → {{ ride.destination }}</h2>
+
+                <div class="ride-details">
+                    <div class="detail">
+                        <small>Travel Date</small>
+                        <strong>{{ ride.travel_date }}</strong>
+                    </div>
+
+                    <div class="detail">
+                        <small>Travel Time</small>
+                        <strong>{{ ride.travel_time }}</strong>
+                    </div>
+
+                    <div class="detail">
+                        <small>Available Seats</small>
+                        <strong>{{ ride.available_seats }}</strong>
+                    </div>
+                </div>
+
+                <h3>Student Requests</h3>
+
+                {% for ride_request in ride.ride_requests.all %}
+                    <div class="request">
+                        <p><strong>Student:</strong>
+                            {{ ride_request.requester.username }}
+                        </p>
+
+                        <p>
+                            <strong>Status:</strong>
+                            <span class="status {{ ride_request.status }}">
+                                {{ ride_request.get_status_display }}
+                            </span>
+                        </p>
+
+                        {% if ride_request.status == 'pending' %}
+                            <div class="actions">
+                                <form method="post"
+                                      action="{% url 'respond_to_request' ride_request.id %}">
+                                    {% csrf_token %}
+                                    <button class="btn accept" type="submit"
+                                            name="action" value="accept">
+                                        Accept
+                                    </button>
+                                </form>
+
+                                <form method="post"
+                                      action="{% url 'respond_to_request' ride_request.id %}">
+                                    {% csrf_token %}
+                                    <button class="btn reject" type="submit"
+                                            name="action" value="reject">
+                                        Reject
+                                    </button>
+                                </form>
+                            </div>
+                        {% endif %}
+                    </div>
+                {% empty %}
+                    <p>No students have requested this ride yet.</p>
+                {% endfor %}
+            </section>
+        {% empty %}
+            <div class="empty">
+                <h2>No rides offered yet</h2>
+                <p>Offer a ride first, and student requests will appear here.</p>
+                <a href="{% url 'offer_ride' %}">Offer a Ride</a>
+            </div>
+        {% endfor %}
+    </main>
+</body>
+</html>

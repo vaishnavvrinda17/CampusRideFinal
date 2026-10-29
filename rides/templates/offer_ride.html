@@ -1,0 +1,747 @@
+
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link
+        rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        crossorigin=""
+    >
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Offer a Ride | CampusRide</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+
+    <style>
+        .ride-form-section {
+            max-width: 650px;
+            margin: 45px auto;
+            padding: 30px;
+            background: white;
+            border-radius: 14px;
+            box-shadow: 0 5px 20px rgba(0,0,0,.08);
+        }
+
+        .ride-form-section h2 {
+            color: #102a56;
+            margin-bottom: 10px;
+        }
+
+        .ride-form {
+            display: grid;
+            gap: 18px;
+            margin-top: 25px;
+        }
+
+        .ride-form label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+
+        .ride-form input,
+        .ride-form select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 7px;
+            font-size: 15px;
+            box-sizing: border-box;
+        }
+
+        .location-button {
+            margin-top: 9px;
+            padding: 10px 14px;
+            border: 1px solid #2563eb;
+            border-radius: 7px;
+            background: white;
+            color: #2563eb;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .location-button:hover {
+            background: #eff6ff;
+        }
+
+        .location-button:disabled {
+            opacity: .6;
+            cursor: wait;
+        }
+
+        .ride-form button[type="submit"] {
+            border: none;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 16px;
+        }
+
+        .success-message {
+            background: #dcfce7;
+            color: #166534;
+            padding: 12px;
+            border-radius: 7px;
+            margin-top: 15px;
+        }
+
+        .error-message {
+            color: #b91c1c;
+            margin-top: 12px;
+        }
+
+        .location-status {
+            color: #475569;
+            font-size: 13px;
+            margin-top: 7px;
+            overflow-wrap: anywhere;
+        }
+
+        .map-instructions {
+            color: #475569;
+            font-size: 13px;
+            margin: 8px 0;
+        }
+
+        .ride-location-map {
+            width: 100%;
+            height: 280px;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid #cbd5e1;
+        }
+
+        .location-field {
+            position: relative;
+        }
+
+        .location-suggestions {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: #fff;
+            border: 1px solid #dbe3ef;
+            border-radius: 8px;
+            box-shadow: 0 8px 20px rgba(0,0,0,.12);
+            z-index: 2000;
+            max-height: 220px;
+            overflow-y: auto;
+        }
+
+        .location-suggestions .suggestion-item {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-bottom: 1px solid #edf0f5;
+            background: #fff;
+            text-align: left;
+            cursor: pointer;
+            color: #243247;
+            font: inherit;
+        }
+
+        .location-suggestions .suggestion-item:hover {
+            background: #f0f5ff;
+        }
+
+        .location-suggestions .suggestion-message {
+            padding: 12px;
+            color: #64748b;
+            font-size: 14px;
+        }
+
+        @media (max-width: 700px) {
+            .ride-form-section {
+                margin: 25px 15px;
+                padding: 22px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header class="navbar">
+        <h1 class="logo">CampusRide</h1>
+        <nav>
+            <a href="/">Home</a>
+            <a href="/find-ride/">Find Ride</a>
+            <a href="/offer-ride/">Offer Ride</a>
+        </nav>
+    </header>
+
+    <main class="ride-form-section">
+        <h2>Offer a Ride</h2>
+        <p>Share your journey with fellow campus students.</p>
+
+        {% if success %}
+            <p class="success-message">
+                Your ride has been saved successfully!
+            </p>
+            <p><a href="/find-ride/">View available rides</a></p>
+        {% endif %}
+
+        {% if error %}
+            <p class="error-message">{{ error }}</p>
+        {% endif %}
+
+        <form class="ride-form" id="rideForm" method="post">
+            {% csrf_token %}
+
+            <div>
+                <label for="driver">Your Name</label>
+                <input type="text" id="driver" name="student_name"
+                       placeholder="Enter your name" required>
+            </div>
+
+            <div>
+                <label for="pickup">Pickup Address</label>
+                <div class="location-field">
+                    <input type="text" id="pickup" name="pickup_location"
+                           placeholder="Start typing pickup address..." autocomplete="off" required>
+                    <div id="pickupSuggestions" class="location-suggestions"></div>
+                </div>
+
+                <button type="button" class="location-button"
+                        id="useLocation">
+                    Use My Current Location
+                </button>
+
+                <p class="location-status" id="pickupStatus" role="status">
+                    Enter an address, or use your current location.
+                </p>
+
+                <div class="map-instructions">
+                Select your pickup point on the map, or enter the address manually.
+                </div>
+
+                <div id="pickupMap" class="ride-location-map"
+                role="application"
+                aria-label="Select pickup location on map">
+                </div>
+
+
+                <input type="hidden" id="pickup_latitude"
+                       name="pickup_latitude">
+                <input type="hidden" id="pickup_longitude"
+                       name="pickup_longitude">
+            </div>
+
+            <div>
+                <label for="destination">Destination Address</label>
+                <div class="location-field">
+                    <input type="text" id="destination"
+                           name="destination"
+                           placeholder="Start typing destination address..."
+                           autocomplete="off" required>
+                    <div id="destinationSuggestions" class="location-suggestions"></div>
+                </div>
+
+                <p class="location-status" id="destinationStatus"
+                   role="status">
+                    Enter an address or select the destination point on the map.
+                </p>
+
+                <div class="map-instructions">
+                    Use the single map above to select whichever location field you clicked last.
+                </div>
+
+                <input type="hidden" id="destination_latitude"
+                       name="destination_latitude">
+                <input type="hidden" id="destination_longitude"
+                       name="destination_longitude">
+            </div>
+
+            <div>
+                <label for="date">Travel Date</label>
+                <input type="date" id="date" name="travel_date" required>
+            </div>
+
+            
+<div>
+    <label for="time">Departure Time</label>
+    <input type="text"
+           id="time"
+           name="travel_time"
+           placeholder="e.g. 02:30 PM"
+           pattern="(0?[1-9]|1[0-2]):[0-5][0-9]\s?(AM|PM|am|pm)"
+           title="Enter time like 02:30 PM"
+           required>
+</div>
+
+<div>
+    <label for="seats">Available Seats</label>
+    <select id="seats" name="available_seats" required>
+        <option value="">Select seats</option>
+        <option value="1">1 seat</option>
+        <option value="2">2 seats</option>
+        <option value="3">3 seats</option>
+        <option value="4">4 seats</option>
+    </select>
+</div>
+
+            <p class="error-message" id="formError" role="alert"></p>
+
+            <button type="submit" class="btn" id="submitRide">
+                Offer My Ride
+            </button>
+        </form>
+    </main>
+
+    <footer>
+        <p>&copy; 2026 CampusRide | Campus Travel Made Easy</p>
+    </footer>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const pickup = document.getElementById("pickup");
+        const destination = document.getElementById("destination");
+        const form = document.getElementById("rideForm");
+        const formError = document.getElementById("formError");
+        const submitButton = document.getElementById("submitRide");
+        const locationButton = document.getElementById("useLocation");
+
+        const pickupStatus = document.getElementById("pickupStatus");
+        const destinationStatus =
+            document.getElementById("destinationStatus");
+
+        const fields = {
+            pickupLat: document.getElementById("pickup_latitude"),
+            pickupLon: document.getElementById("pickup_longitude"),
+            destinationLat: document.getElementById("destination_latitude"),
+            destinationLon: document.getElementById("destination_longitude")
+        };
+
+        // Clear old coordinates whenever an address is edited.
+        pickup.addEventListener("input", () => {
+            fields.pickupLat.value = "";
+            fields.pickupLon.value = "";
+            pickupStatus.textContent =
+                "Address changed. Coordinates will be looked up on submit.";
+        });
+
+        destination.addEventListener("input", () => {
+            fields.destinationLat.value = "";
+            fields.destinationLon.value = "";
+            destinationStatus.textContent =
+                "Coordinates will be looked up from this address.";
+        });
+
+        // Convert an address into coordinates.
+        async function geocodeAddress(address) {
+            const url = new URL(
+                "https://nominatim.openstreetmap.org/search"
+            );
+
+            url.search = new URLSearchParams({
+                q: address,
+                format: "jsonv2",
+                limit: "1",
+                countrycodes: "in"
+            });
+
+            const response = await fetch(url);
+
+            if (!response.ok) {
+                throw new Error(
+                    "Address lookup service is unavailable. Try again later."
+                );
+            }
+
+            const results = await response.json();
+
+            if (!results.length) {
+                throw new Error(
+                    "Address not found. Please enter a more complete address."
+                );
+            }
+
+            return {
+                lat: results[0].lat,
+                lon: results[0].lon,
+                address: results[0].display_name
+            };
+        }
+
+        // Use the device's current location.
+        locationButton.addEventListener("click", () => {
+            formError.textContent = "";
+
+            if (!navigator.geolocation) {
+                pickupStatus.textContent =
+                    "Your browser does not support location access.";
+                return;
+            }
+
+            locationButton.disabled = true;
+            locationButton.textContent = "Detecting Location...";
+            pickupStatus.textContent =
+                "Requesting GPS location. Please allow location access.";
+
+            navigator.geolocation.getCurrentPosition(
+                async position => {
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+                    const accuracy = position.coords.accuracy;
+                    
+                    // Save the actual GPS coordinates.
+                    fields.pickupLat.value = lat;
+                    fields.pickupLon.value = lon;
+
+                    pickupStatus.textContent =
+                        "GPS detected (accuracy approximately " +
+                        Math.round(accuracy) +
+                        " metres). Looking up address...";
+
+                    try {
+                        const url = new URL(
+                            "https://nominatim.openstreetmap.org/reverse"
+                        );
+
+                        url.search = new URLSearchParams({
+                            lat: lat,
+                            lon: lon,
+                            format: "jsonv2",
+                            zoom: "18",
+                            addressdetails: "1",
+                            "accept-language": "en"
+                        });
+
+                        const response = await fetch(url);
+
+                        if (!response.ok) {
+                            throw new Error("Address lookup failed.");
+                        }
+
+                        const result = await response.json();
+                        if (result.error) {
+                            throw new Error(result.error);
+                        }
+
+                        if (!result.display_name) {
+                        throw new Error("Address not found");
+                        }
+
+                        console.log("GPS coordinates:", lat, lon);
+                        console.log("GPS accuracy in metres:", accuracy);
+                        console.log("Address returned by map:", result.display_name);
+                        console.log("Address details:", result.address);
+                        if (result.display_name) {
+                            // Set the address without triggering input events.
+                            pickup.value = result.display_name;
+
+                            pickupStatus.textContent =
+                                "Location detected. GPS accuracy is about " +
+                                Math.round(accuracy) +
+                                " metres. Please verify the address.";
+                        } else {
+                            pickupStatus.textContent =
+                                "Coordinates detected, but no address was found. " +
+                                "Please enter your pickup address manually.";
+                        }
+                    } catch (error) {
+                        pickupStatus.textContent =
+                            "GPS coordinates detected, but address lookup failed. " +
+                            "Please enter your pickup address manually.";
+                    } finally {
+                        locationButton.disabled = false;
+                        locationButton.textContent =
+                            "Use My Current Location";
+                    }
+                },
+                error => {
+                    if (error.code === 1) {
+                        pickupStatus.textContent =
+                            "Location permission denied. Allow location access " +
+                            "in your browser settings.";
+                    } else if (error.code === 2) {
+                        pickupStatus.textContent =
+                            "Your location could not be determined. Check device location settings.";
+                    } else if (error.code === 3) {
+                        pickupStatus.textContent =
+                            "Location request timed out. Try again in an open area.";
+                    } else {
+                        pickupStatus.textContent =
+                            "Location unavailable. Please enter your address manually.";
+                    }
+
+                    locationButton.disabled = false;
+                    locationButton.textContent =
+                        "Use My Current Location";
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 20000,
+                    maximumAge: 0
+                }
+            );
+        }); // IMPORTANT: closes the location button click handler.
+
+        // Look up coordinates and submit the ride.
+        form.addEventListener("submit", async event => {
+            event.preventDefault();
+            formError.textContent = "";
+
+            submitButton.disabled = true;
+            submitButton.textContent = "Finding Locations...";
+
+            try {
+                if (!fields.pickupLat.value || !fields.pickupLon.value) {
+                    pickupStatus.textContent =
+                        "Finding pickup coordinates...";
+
+                    const result = await geocodeAddress(pickup.value);
+                    fields.pickupLat.value = result.lat;
+                    fields.pickupLon.value = result.lon;
+                }
+
+                if (!fields.destinationLat.value ||
+                    !fields.destinationLon.value) {
+                    destinationStatus.textContent =
+                        "Finding destination coordinates...";
+
+                    const result = await geocodeAddress(destination.value);
+                    fields.destinationLat.value = result.lat;
+                    fields.destinationLon.value = result.lon;
+                }
+
+                // Submit to Django only after both lookups succeed.
+                form.submit();
+
+            } catch (error) {
+                formError.textContent = error.message ||
+                    "Could not find the location. Please try again.";
+
+                submitButton.disabled = false;
+                submitButton.textContent = "Offer My Ride";
+            }
+        });
+    </script>
+    <script>
+document.addEventListener("DOMContentLoaded", function () {
+    if (typeof L === "undefined") {
+        document.getElementById("pickupStatus").textContent =
+            "Map load nahi hua. Internet connection check karo.";
+        document.getElementById("destinationStatus").textContent =
+            "Map load nahi hua. Internet connection check karo.";
+        return;
+    }
+
+    async function addressFromCoordinates(lat, lon) {
+        const url = new URL("https://nominatim.openstreetmap.org/reverse");
+        url.search = new URLSearchParams({
+            lat: String(lat),
+            lon: String(lon),
+            format: "jsonv2",
+            addressdetails: "1",
+            "accept-language": "en"
+        });
+
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error("Address lookup failed");
+        }
+
+        const data = await response.json();
+        return data.display_name || "";
+    }
+
+    const pickupInput = document.getElementById("pickup");
+    const destinationInput = document.getElementById("destination");
+    const pickupLat = document.getElementById("pickup_latitude");
+    const pickupLon = document.getElementById("pickup_longitude");
+    const destinationLat = document.getElementById("destination_latitude");
+    const destinationLon = document.getElementById("destination_longitude");
+    const pickupStatus = document.getElementById("pickupStatus");
+    const destinationStatus = document.getElementById("destinationStatus");
+    const map = L.map("pickupMap").setView([23.2599, 77.4126], 11);
+    L.tileLayer(
+    "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
+    {
+        attribution: "Tiles &copy; Esri",
+        maxZoom: 19
+    }
+).addTo(map);
+
+    let activeLocation = "pickup";
+
+const markers = {
+    pickup: null,
+    destination: null
+};
+
+function placeMarker(lat, lon, label) {
+    const point = [lat, lon];
+    const key = label.toLowerCase();
+
+    if (markers[key]) {
+        markers[key].setLatLng(point);
+    } else {
+        markers[key] = L.marker(point).addTo(map);
+    }
+
+    markers[key].bindPopup(label + " point").openPopup();
+    map.setView(point, 13);
+
+    // Dono markers hon toh map ko dono locations par fit karo.
+    if (markers.pickup && markers.destination) {
+        const bounds = L.latLngBounds(
+            markers.pickup.getLatLng(),
+            markers.destination.getLatLng()
+        );
+        map.fitBounds(bounds, { padding: [40, 40], maxZoom: 13 });
+    }
+}
+
+    pickupInput.addEventListener("focus", () => { activeLocation = "pickup"; });
+    destinationInput.addEventListener("focus", () => { activeLocation = "destination"; });
+
+    map.on("click", async function (event) {
+        const lat = event.latlng.lat;
+        const lon = event.latlng.lng;
+        const isPickup = activeLocation === "pickup";
+        const addressInput = isPickup ? pickupInput : destinationInput;
+        const latInput = isPickup ? pickupLat : destinationLat;
+        const lonInput = isPickup ? pickupLon : destinationLon;
+        const status = isPickup ? pickupStatus : destinationStatus;
+        const label = isPickup ? "Pickup" : "Destination";
+        latInput.value = lat.toFixed(7);
+        lonInput.value = lon.toFixed(7);
+        placeMarker(lat, lon, label);
+        status.textContent = "Map point selected. Address is being looked up...";
+        try {
+            const address = await addressFromCoordinates(lat, lon);
+            if (address) {
+                addressInput.value = address;
+                status.textContent = label + " selected on map.";
+            } else status.textContent = "Coordinates selected. Enter the address if needed.";
+        } catch (error) {
+            status.textContent = "Coordinates selected, but address lookup failed. You can type it manually.";
+        }
+    });
+
+    [pickupInput, destinationInput].forEach(function (input) {
+        input.addEventListener("input", function () {
+            const isPickup = input.id === "pickup";
+            (isPickup ? pickupLat : destinationLat).value = "";
+            (isPickup ? pickupLon : destinationLon).value = "";
+        });
+    });
+
+    document.addEventListener("campusride:place-selected", function (event) {
+        const place = event.detail;
+        const isPickup = place.inputId === "pickup";
+        placeMarker(place.lat, place.lon, isPickup ? "Pickup" : "Destination");
+        (isPickup ? pickupStatus : destinationStatus).textContent =
+            "Location selected from suggestions. Marker shown on the single map.";
+    });
+
+    setTimeout(() => map.invalidateSize(), 300);
+
+});
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    function setupAddressSuggestions(inputId, suggestionsId) {
+        const input = document.getElementById(inputId);
+        const box = document.getElementById(suggestionsId);
+        let timer;
+        let controller;
+
+        function closeSuggestions() {
+            box.style.display = "none";
+            box.replaceChildren();
+        }
+
+        input.addEventListener("input", function () {
+            clearTimeout(timer);
+            if (controller) controller.abort();
+
+            // Editing a selected address invalidates its previous coordinates.
+            delete input.dataset.lat;
+            delete input.dataset.lon;
+            closeSuggestions();
+
+            const query = input.value.trim();
+            if (query.length < 3) return;
+
+            timer = setTimeout(async function () {
+                controller = new AbortController();
+                box.innerHTML = '<div class="suggestion-message">Searching places...</div>';
+                box.style.display = "block";
+
+                try {
+                    const url = new URL("https://nominatim.openstreetmap.org/search");
+                    url.search = new URLSearchParams({
+                        q: query,
+                        format: "jsonv2",
+                        limit: "5",
+                        addressdetails: "1",
+                        countrycodes: "in"
+                    });
+
+                    const response = await fetch(url, { signal: controller.signal });
+                    if (!response.ok) throw new Error("Search unavailable");
+                    const places = await response.json();
+                    box.replaceChildren();
+
+                    if (!places.length) {
+                        box.innerHTML = '<div class="suggestion-message">No places found. Try a more specific address.</div>';
+                        box.style.display = "block";
+                        return;
+                    }
+
+                    places.forEach(function (place) {
+                        const button = document.createElement("button");
+                        button.type = "button";
+                        button.className = "suggestion-item";
+                        button.textContent = place.display_name;
+                        button.addEventListener("click", function () {
+                            input.value = place.display_name;
+                            input.dataset.lat = place.lat;
+                            input.dataset.lon = place.lon;
+
+                            const prefix = inputId === "pickup" ? "pickup" : "destination";
+                            document.getElementById(prefix + "_latitude").value = place.lat;
+                            document.getElementById(prefix + "_longitude").value = place.lon;
+
+                            closeSuggestions();
+                            document.dispatchEvent(new CustomEvent("campusride:place-selected", {
+                                detail: {
+                                    inputId: inputId,
+                                    lat: Number(place.lat),
+                                    lon: Number(place.lon),
+                                    address: place.display_name
+                                }
+                            }));
+                        });
+                        box.appendChild(button);
+                    });
+                    box.style.display = "block";
+                } catch (error) {
+                    if (error.name === "AbortError") return;
+                    box.innerHTML = '<div class="suggestion-message">Places load nahi hue. Internet check karke dobara try karo.</div>';
+                    box.style.display = "block";
+                }
+            }, 1000);
+        });
+
+        input.addEventListener("keydown", function (event) {
+            if (event.key === "Escape") closeSuggestions();
+        });
+
+        document.addEventListener("click", function (event) {
+            if (!input.contains(event.target) && !box.contains(event.target)) {
+                closeSuggestions();
+            }
+        });
+    }
+
+    setupAddressSuggestions("pickup", "pickupSuggestions");
+    setupAddressSuggestions("destination", "destinationSuggestions");
+});
+</script>
+</body>
+</html>

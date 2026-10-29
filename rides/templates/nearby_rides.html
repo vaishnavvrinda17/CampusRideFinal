@@ -1,0 +1,240 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Nearby Rides | CampusRide</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f7fb;
+            margin: 0;
+            padding: 25px;
+            color: #222;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: auto;
+        }
+
+        .card {
+            background: #ffffff;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px #00000012;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            margin: 6px 0 14px;
+            box-sizing: border-box;
+            border: 1px solid #cccccc;
+            border-radius: 5px;
+            font-size: 15px;
+        }
+
+        label {
+            display: block;
+            font-weight: bold;
+        }
+
+        button {
+            background-color: #176b55;
+            color: #ffffff;
+            border: 2px solid #176b55;
+            border-radius: 6px;
+            padding: 12px 18px;
+            margin: 6px 0;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            display: inline-block;
+        }
+
+        button:hover {
+            background-color: #104c3d;
+            border-color: #104c3d;
+        }
+
+        a {
+            color: #176b55;
+        }
+
+        .error {
+            color: #b42318;
+        }
+
+        #location-status {
+            color: #333333;
+            font-size: 14px;
+        }
+
+        .ride-distance {
+            color: #176b55;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>CampusRide — Nearby Rides</h1>
+
+    <p>
+        Find rides with pickup points within 5 km of your location.
+    </p>
+
+    <div class="card">
+
+        <form method="get">
+
+            <button type="button" onclick="useMyLocation()">
+                Use My Location
+            </button>
+
+            <p id="location-status" aria-live="polite"></p>
+
+            <label for="latitude">Your Latitude</label>
+
+            <input
+                type="number"
+                step="any"
+                id="latitude"
+                name="latitude"
+                value="{{ latitude|default:'' }}"
+                placeholder="e.g. 23.2599"
+                required
+            >
+
+            <label for="longitude">Your Longitude</label>
+
+            <input
+                type="number"
+                step="any"
+                id="longitude"
+                name="longitude"
+                value="{{ longitude|default:'' }}"
+                placeholder="e.g. 77.4126"
+                required
+            >
+
+            <button type="submit">
+                Find Nearby Rides
+            </button>
+
+        </form>
+
+    </div>
+
+    {% if error %}
+        <p class="error">{{ error }}</p>
+    {% endif %}
+
+    {% if rides %}
+        <h2>Matching Rides</h2>
+
+        {% for ride in rides %}
+
+            <div class="card">
+
+                <h3>
+                    {{ ride.pickup_location }}
+                    → {{ ride.destination }}
+                </h3>
+
+                <p>
+                    <strong>Student:</strong>
+                    {{ ride.student_name }}
+                </p>
+
+                <p>
+                    <strong>Date:</strong>
+                    {{ ride.travel_date }}
+                </p>
+
+                <p>
+                    <strong>Time:</strong>
+                    {{ ride.travel_time }}
+                </p>
+
+                <p>
+                    <strong>Available seats:</strong>
+                    {{ ride.available_seats }}
+                </p>
+
+                {% if ride.distance %}
+                    <p class="ride-distance">
+                        <strong>Distance from you:</strong>
+                        {{ ride.distance.km|floatformat:2 }} km
+                    </p>
+                {% endif %}
+
+            </div>
+
+        {% endfor %}
+
+    {% elif latitude and longitude and not error %}
+        <p>No rides with saved pickup coordinates found within 5 km.</p>
+    {% endif %}
+
+    <p>
+        <a href="/">Back to Home</a>
+    </p>
+
+</div>
+
+<script>
+function useMyLocation() {
+    const status = document.getElementById('location-status');
+    const latitudeInput = document.getElementById('latitude');
+    const longitudeInput = document.getElementById('longitude');
+
+    if (!navigator.geolocation) {
+        status.textContent =
+            'Your browser does not support location services.';
+        return;
+    }
+
+    status.textContent = 'Getting your location...';
+
+    navigator.geolocation.getCurrentPosition(
+        function (position) {
+            latitudeInput.value = position.coords.latitude;
+            longitudeInput.value = position.coords.longitude;
+
+            status.textContent =
+                'Location added successfully. Click Find Nearby Rides.';
+        },
+
+        function (error) {
+            if (error.code === error.PERMISSION_DENIED) {
+                status.textContent =
+                    'Location permission denied. Allow location access in your browser settings.';
+            } else if (error.code === error.TIMEOUT) {
+                status.textContent =
+                    'Location request timed out. Please try again.';
+            } else {
+                status.textContent =
+                    'Unable to get your location. Please try again or enter coordinates manually.';
+            }
+        },
+
+        {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 60000
+        }
+    );
+}
+</script>
+
+</body>
+</html>
