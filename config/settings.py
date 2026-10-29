@@ -74,14 +74,15 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases
 
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.contrib.gis.db.backends.postgis',
-        'NAME': 'campusride_db',
-        'USER': 'postgres',
-        'PASSWORD': 'vrinda@@$$',
-        'HOST': '127.0.0.1',
-        'PORT': '5432',
+        'NAME': os.environ.get('DB_NAME', 'campusride_db'),
+        'USER': os.environ.get('DB_USER', 'postgres'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', ''),
+        'HOST': os.environ.get('DB_HOST', '127.0.0.1'),
+        'PORT': os.environ.get('DB_PORT', '5432'),
     }
 }
 
@@ -131,8 +132,11 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 
 
-GDAL_LIBRARY_PATH = r'C:\Users\VRINDA\AppData\Local\Programs\OSGeo4W\bin\gdal313.dll'
-GEOS_LIBRARY_PATH = r'C:\Users\VRINDA\AppData\Local\Programs\OSGeo4W\bin\geos_c.dll'
+
+
+if os.name == "nt":
+    GDAL_LIBRARY_PATH = r'C:\Users\VRINDA\AppData\Local\Programs\OSGeo4W\bin\gdal313.dll'
+    GEOS_LIBRARY_PATH = r'C:\Users\VRINDA\AppData\Local\Programs\OSGeo4W\bin\geos_c.dll'
 
 
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
