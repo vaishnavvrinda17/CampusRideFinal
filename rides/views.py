@@ -326,35 +326,23 @@ def register(request):
             token = default_token_generator.make_token(user)
 
             verification_path = reverse(
-                'verify_email',
-                kwargs={'uidb64': uid, 'token': token}
+            'verify_email',
+            kwargs={'uidb64': uid, 'token': token}
             )
             verification_url = request.build_absolute_uri(verification_path)
+
             send_mail(
-                subject='Verify your CampusRide account',
-                message=(
-                    f'Hi {user.username},\n\n'
-                    'Please verify your email by opening this link:\n'
-                    f'{verification_url}\n\n'
-                    'If you did not create this account, ignore this email.'
-                ),
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[user.email],
-                fail_silently=False,
+            subject='Verify your CampusRide account',
+            message=(
+                f'Hi {user.username},\n\n'
+                'Please verify your email by opening this link:\n'
+                f'{verification_url}\n\n'
+                'If you did not create this account, ignore this email.'
+            ),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[user.email],
+            fail_silently=False,
             )
-
-            return render(
-                request,
-                'register.html',
-                {
-                    'form': StudentRegistrationForm(),
-                    'message': 'Registration successful! Check your college email for the verification link.'
-                }
-            )
-    else:
-        form = StudentRegistrationForm()
-
-    return render(request, 'register.html', {'form': form})
 
 
 
