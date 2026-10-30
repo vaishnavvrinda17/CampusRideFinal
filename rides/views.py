@@ -330,7 +330,7 @@ def register(request):
     else:
         form = StudentRegistrationForm()
 
-    return render(request, 'register.html', {'form': form})verification_path)
+    return render(request, 'register.html', {'form': form})
 
           
 
