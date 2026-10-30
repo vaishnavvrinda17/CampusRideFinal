@@ -322,27 +322,17 @@ def register(request):
                 enrollment_number=form.cleaned_data['enrollment_number']
             )
 
-            uid = urlsafe_base64_encode(force_bytes(user.pk))
-            token = default_token_generator.make_token(user)
+            return render(request, 'register.html', {
+                'form': StudentRegistrationForm(),
+                'message': 'Registration successful! You can now log in.'
+            })
 
-            verification_path = reverse(
-            'verify_email',
-            kwargs={'uidb64': uid, 'token': token}
-            )
-            verification_url = request.build_absolute_uri(verification_path)
+    else:
+        form = StudentRegistrationForm()
 
-            send_mail(
-            subject='Verify your CampusRide account',
-            message=(
-                f'Hi {user.username},\n\n'
-                'Please verify your email by opening this link:\n'
-                f'{verification_url}\n\n'
-                'If you did not create this account, ignore this email.'
-            ),
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[user.email],
-            fail_silently=False,
-            )
+    return render(request, 'register.html', {'form': form})verification_path)
+
+          
 
 
 
