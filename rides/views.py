@@ -329,10 +329,7 @@ def register(request):
                 'verify_email',
                 kwargs={'uidb64': uid, 'token': token}
             )
-            verification_url = (
-            f"http://10.17.224.156:8000{verification_path}"
-            )
-
+            verification_url = request.build_absolute_uri(verification_path)
             send_mail(
                 subject='Verify your CampusRide account',
                 message=(
