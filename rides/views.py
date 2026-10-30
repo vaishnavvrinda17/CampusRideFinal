@@ -314,7 +314,7 @@ def register(request):
 
         if form.is_valid():
             user = form.save(commit=False)
-            user.is_active = False
+            user.is_active = True
             user.save()
 
             StudentProfile.objects.create(
